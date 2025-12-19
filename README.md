@@ -1,6 +1,6 @@
 # AI Company Simulation
 
-A sophisticated simulation of a real software development company using the **CrewAI framework** to orchestrate AI agents with expertise in various business functions. The system implements a complete organizational hierarchy with CEO, CTO, Department Heads, Experts, Developers, Analysts, and more.
+A sophisticated simulation of a real software development company with **dual-backend support**: **CrewAI** for traditional sequential orchestration and **Claude Code** for custom subagents with parallel execution. The system implements a complete organizational hierarchy with CEO, CTO, Department Heads, Experts, Developers, Analysts, and more.
 
 ## 🏢 Overview
 
@@ -10,7 +10,23 @@ This project simulates a full-featured AI-powered company with:
 - **Multiple Departments**: Marketing, Operations, HR, Software Development, Commercial
 - **Intelligent AI Agents**: Each agent has specific roles, expertise, and responsibilities
 - **Realistic Workflows**: Cross-functional collaboration, product launches, quarterly reviews
-- **CrewAI Orchestration**: Sophisticated task delegation and team coordination
+- **Dual Backend Support**: Choose between CrewAI or Claude Code custom subagents
+- **Parallel Execution**: Claude Code backend supports concurrent agent workflows
+
+## 🔧 Backend Options
+
+### CrewAI Backend (Default)
+- Traditional sequential agent orchestration
+- Stable and production-ready
+- Requires OpenAI API key
+
+### Claude Code Backend
+- Custom subagents defined in `.claude/agents/` markdown files
+- Supports parallel task execution
+- Runs within Claude Code environment
+- 16 specialized subagent definitions included
+
+**See [BACKEND_GUIDE.md](BACKEND_GUIDE.md) for detailed backend documentation.**
 
 ## 📋 Organizational Structure
 

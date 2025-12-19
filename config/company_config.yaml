@@ -1,0 +1,32 @@
+# AI Company Backend Configuration
+# This file controls which backend is used for agent orchestration
+
+# Backend selection: "crewai" or "claude_code"
+# Default: crewai (for backward compatibility)
+backend: crewai
+
+# CrewAI backend configuration
+crewai:
+  verbose: true
+  max_iterations:
+    executive: 5
+    head: 5
+    specialist: 3
+
+# Claude Code backend configuration
+claude_code:
+  subagents_dir: .claude/agents
+  model: sonnet
+  parallel_execution: true
+  max_parallel_tasks: 5
+
+# Company configuration
+company:
+  name: "AI Company Inc."
+  departments:
+    - executive
+    - marketing
+    - operations
+    - human_resources
+    - software_development
+    - commercial
