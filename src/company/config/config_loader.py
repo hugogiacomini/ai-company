@@ -6,6 +6,10 @@ import os
 from typing import Dict, Any, Optional
 from pathlib import Path
 import yaml
+from .validation import ConfigValidator
+from ..utils.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 
 class ConfigLoader:
@@ -16,7 +20,7 @@ class ConfigLoader:
     ENV_VAR_CONFIG_PATH = "AI_COMPANY_CONFIG_PATH"
 
     @classmethod
-    def load_config(cls, config_path: Optional[str] = None) -> Dict[str, Any]:
+    def load_config(cls, config_path: Optional[str] = None, validate: bool = True) -> Dict[str, Any]:
         """
         Load configuration from YAML file and environment variables.
 
@@ -24,9 +28,13 @@ class ConfigLoader:
 
         Args:
             config_path: Optional path to config file. If None, uses default or env var.
+            validate: Whether to validate configuration after loading (default: True)
 
         Returns:
             Dictionary with configuration
+
+        Raises:
+            ConfigurationError: If configuration is invalid and validate=True
         """
         # Determine config file path
         if config_path is None:
@@ -39,6 +47,16 @@ class ConfigLoader:
         backend_env = os.getenv(cls.ENV_VAR_BACKEND)
         if backend_env:
             config['backend'] = backend_env
+            logger.debug(f"Backend overridden by environment variable: {backend_env}")
+
+        # Validate configuration
+        if validate:
+            try:
+                ConfigValidator.validate_config(config)
+                logger.info("Configuration loaded and validated successfully")
+            except Exception as e:
+                logger.error(f"Configuration validation failed: {e}")
+                raise
 
         return config
 
@@ -104,6 +122,11 @@ class ConfigLoader:
                     'software_development',
                     'commercial'
                 ]
+            },
+            'cache': {
+                'enabled': True,
+                'cache_dir': '.cache/workflows',
+                'ttl_seconds': 3600
             }
         }
 

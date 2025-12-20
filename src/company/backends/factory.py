@@ -7,6 +7,7 @@ from typing import Optional, Dict, Any
 from .base import BaseBackend, BackendType
 from .crewai_backend import CrewAIBackend
 from ..config.config_loader import ConfigLoader
+from ..exceptions import BackendError, BackendNotAvailableError, ConfigurationError
 
 
 class BackendFactory:
@@ -53,12 +54,12 @@ class BackendFactory:
                 backend = ClaudeCodeBackend()
                 backend_config = ConfigLoader.get_backend_config('claude_code', config)
             except ImportError as e:
-                raise ValueError(
+                raise BackendNotAvailableError(
                     f"Claude Code backend not available: {e}. "
                     f"Ensure all dependencies are installed."
-                )
+                ) from e
         else:
-            raise ValueError(
+            raise ConfigurationError(
                 f"Unknown backend type: '{backend_type}'. "
                 f"Valid options are: {[bt.value for bt in BackendType]}"
             )

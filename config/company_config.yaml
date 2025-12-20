@@ -30,3 +30,10 @@ company:
     - human_resources
     - software_development
     - commercial
+
+# Cache configuration
+cache:
+  enabled: true
+  cache_dir: .cache/workflows
+  ttl_seconds: 3600  # 1 hour
+  # Set to false to disable caching (useful for development/testing)

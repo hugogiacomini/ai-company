@@ -42,12 +42,26 @@ Thumbs.db
 
 # Logs
 *.log
+logs/
+ai_company.log
 
 # Test coverage
 .coverage
 htmlcov/
 .pytest_cache/
+coverage.xml
+*.cover
+.tox/
+.nox/
+
+# Cache
+.cache/
+*.cache
 
 # Temporary files
 tmp/
 *.tmp
+
+# AI Company specific
+outputs/
+temp/

@@ -297,6 +297,15 @@ Contributions are welcome! Feel free to:
 
 ## 📚 Learn More
 
+### Project Documentation
+
+- [BACKEND_GUIDE.md](BACKEND_GUIDE.md) - Comprehensive guide to using both backends
+- [IMPROVEMENTS.md](IMPROVEMENTS.md) - High-priority improvements (testing, logging, exceptions)
+- [MEDIUM_PRIORITY_IMPROVEMENTS.md](MEDIUM_PRIORITY_IMPROVEMENTS.md) - Performance & quality enhancements (caching, validation)
+- [CONTRIBUTING.md](CONTRIBUTING.md) - Development guidelines
+
+### External Resources
+
 - [CrewAI Documentation](https://docs.crewai.com/)
 - [LangChain Documentation](https://python.langchain.com/)
 

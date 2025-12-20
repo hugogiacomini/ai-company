@@ -12,6 +12,11 @@ from .tasks.company_tasks import CompanyTasks
 from .crews.company_crews import CompanyCrews
 from .backends.factory import BackendFactory
 from .orchestration.workflow_manager import WorkflowManager
+from .utils.logging_config import get_logger
+from .exceptions import WorkflowExecutionError
+
+# Get logger for this module
+logger = get_logger(__name__)
 
 
 class AICompany:
@@ -42,8 +47,13 @@ class AICompany:
         self.backend_name = backend
 
         # Initialize backend
-        self.backend = BackendFactory.create_backend(backend_type=backend)
-        self.workflow_manager = WorkflowManager(self.backend)
+        try:
+            self.backend = BackendFactory.create_backend(backend_type=backend)
+            self.workflow_manager = WorkflowManager(self.backend)
+            logger.info(f"Initialized AI Company with {self.backend.get_backend_type().value} backend")
+        except Exception as e:
+            logger.error(f"Failed to initialize backend: {e}")
+            raise
 
         self._validate_environment()
         
@@ -110,23 +120,42 @@ class AICompany:
 
         Returns:
             Dictionary with workflow results
+
+        Raises:
+            WorkflowExecutionError: If workflow execution fails
         """
+        logger.info(f"Starting {department.value} workflow with params: {kwargs}")
+        logger.debug(f"Backend: {self.backend.get_backend_type().value}")
+
         print(f"\n{'='*80}")
         print(f"RUNNING {department.value.upper().replace('_', ' ')} DEPARTMENT WORKFLOW")
         print(f"Backend: {self.backend.get_backend_type().value}")
         print(f"{'='*80}\n")
 
-        # Use workflow manager for backend abstraction
-        result = self.workflow_manager.create_department_workflow(
-            department=department,
-            scenario_params=kwargs
-        )
+        try:
+            # Use workflow manager for backend abstraction
+            result = self.workflow_manager.create_department_workflow(
+                department=department,
+                scenario_params=kwargs
+            )
 
-        print(f"\n{'='*80}")
-        print(f"WORKFLOW COMPLETED")
-        print(f"{'='*80}\n")
+            logger.info(f"Successfully completed {department.value} workflow")
 
-        return result
+            print(f"\n{'='*80}")
+            print(f"WORKFLOW COMPLETED")
+            print(f"{'='*80}\n")
+
+            return result
+
+        except WorkflowExecutionError as e:
+            logger.error(f"Workflow execution failed for {department.value}: {e}")
+            print(f"\n{'='*80}")
+            print(f"WORKFLOW FAILED: {e}")
+            print(f"{'='*80}\n")
+            raise
+        except Exception as e:
+            logger.exception(f"Unexpected error in {department.value} workflow")
+            raise WorkflowExecutionError(f"Unexpected error: {e}") from e
     
     def run_product_launch(self, product_name: str) -> Dict[str, Any]:
         """

@@ -6,6 +6,12 @@ from typing import Dict, List, Any, Optional
 from ..backends.base import BaseBackend, AgentRole, TaskDefinition
 from ..models.hierarchy import OrganizationalChart, Department, Role
 from .context_manager import ContextManager
+from ..exceptions import WorkflowExecutionError, AgentCreationError, TaskCreationError
+from ..utils.cache import WorkflowCache
+from ..utils.logging_config import get_logger
+from ..config.config_loader import ConfigLoader
+
+logger = get_logger(__name__)
 
 
 class WorkflowManager:
@@ -19,16 +25,31 @@ class WorkflowManager:
     - Managing context between tasks
     """
 
-    def __init__(self, backend: BaseBackend):
+    def __init__(self, backend: BaseBackend, cache: Optional[WorkflowCache] = None):
         """
         Initialize workflow manager with a backend.
 
         Args:
             backend: Backend instance to use for workflow execution
+            cache: Optional workflow cache. If None, creates from config.
         """
         self.backend = backend
         self.org_chart = OrganizationalChart()
         self.context_manager = ContextManager()
+
+        # Initialize cache from config if not provided
+        if cache is None:
+            config = ConfigLoader.load_config()
+            cache_config = config.get('cache', {})
+            self.cache = WorkflowCache(
+                cache_dir=cache_config.get('cache_dir', '.cache/workflows'),
+                ttl_seconds=cache_config.get('ttl_seconds', 3600),
+                enabled=cache_config.get('enabled', True)
+            )
+        else:
+            self.cache = cache
+
+        logger.debug(f"WorkflowManager initialized with cache: {self.cache.get_stats()}")
 
     def create_department_workflow(
         self,
@@ -44,34 +65,87 @@ class WorkflowManager:
 
         Returns:
             Dictionary with workflow results
+
+        Raises:
+            WorkflowExecutionError: If workflow execution fails
         """
-        # Get roles for department
-        roles = self.org_chart.get_roles_by_department(department)
+        # Check cache first
+        backend_type = self.backend.get_backend_type().value
+        cached_result = self.cache.get(
+            department=department.value,
+            backend=backend_type,
+            params=scenario_params
+        )
 
-        # Create agents
-        agents = []
-        for role in roles:
-            agent_def = self._role_to_agent_def(role)
-            agent = self.backend.create_agent(agent_def)
-            agents.append(agent)
+        if cached_result is not None:
+            logger.info(f"Using cached result for {department.value} workflow")
+            return cached_result
 
-        # Create tasks based on department and scenario
-        tasks = self._create_department_tasks(department, roles, scenario_params)
+        try:
+            # Get roles for department
+            roles = self.org_chart.get_roles_by_department(department)
 
-        # Set workflow metadata
-        self.context_manager.set_workflow_metadata({
-            'department': department.value,
-            'scenario': scenario_params
-        })
+            if not roles:
+                raise WorkflowExecutionError(
+                    f"No roles found for department: {department.value}"
+                )
 
-        # Execute workflow
-        process_type = "parallel" if self.backend.supports_parallel_execution() else "sequential"
-        result = self.backend.execute_workflow(agents, tasks, process_type)
+            # Create agents
+            agents = []
+            for role in roles:
+                try:
+                    agent_def = self._role_to_agent_def(role)
+                    agent = self.backend.create_agent(agent_def)
+                    agents.append(agent)
+                except Exception as e:
+                    raise AgentCreationError(
+                        f"Failed to create agent for role '{role.title}': {e}"
+                    ) from e
 
-        # Clear context for next workflow
-        self.context_manager.clear()
+            # Create tasks based on department and scenario
+            try:
+                tasks = self._create_department_tasks(department, roles, scenario_params)
+            except Exception as e:
+                raise TaskCreationError(
+                    f"Failed to create tasks for {department.value}: {e}"
+                ) from e
 
-        return result.outputs
+            # Set workflow metadata
+            self.context_manager.set_workflow_metadata({
+                'department': department.value,
+                'scenario': scenario_params
+            })
+
+            # Execute workflow
+            process_type = "parallel" if self.backend.supports_parallel_execution() else "sequential"
+            result = self.backend.execute_workflow(agents, tasks, process_type)
+
+            # Check if workflow succeeded
+            if not result.success:
+                raise WorkflowExecutionError(
+                    f"Workflow execution failed: {result.outputs.get('error', 'Unknown error')}"
+                )
+
+            # Cache the successful result
+            self.cache.set(
+                department=department.value,
+                backend=backend_type,
+                params=scenario_params,
+                result=result.outputs
+            )
+
+            return result.outputs
+
+        except (AgentCreationError, TaskCreationError, WorkflowExecutionError):
+            # Re-raise our custom exceptions
+            raise
+        except Exception as e:
+            raise WorkflowExecutionError(
+                f"Unexpected error in {department.value} workflow: {e}"
+            ) from e
+        finally:
+            # Always clear context
+            self.context_manager.clear()
 
     def create_cross_functional_workflow(
         self,

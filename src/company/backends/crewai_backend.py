@@ -6,6 +6,7 @@ from typing import Dict, Any, List
 from crewai import Agent, Task, Crew, Process
 
 from .base import BaseBackend, BackendType, AgentRole, TaskDefinition, WorkflowResult
+from ..exceptions import AgentCreationError, TaskCreationError, WorkflowExecutionError
 
 
 class CrewAIBackend(BaseBackend):
@@ -60,21 +61,27 @@ class CrewAIBackend(BaseBackend):
             CrewAI Task object
 
         Raises:
-            ValueError: If agent for this task hasn't been created yet
+            TaskCreationError: If agent for this task hasn't been created yet
         """
         # Retrieve agent from cache
         agent = self._agents_cache.get(task_def.agent_role)
         if not agent:
-            raise ValueError(
+            raise TaskCreationError(
                 f"Agent '{task_def.agent_role}' not found. "
-                f"Create agent before creating tasks."
+                f"Create agent before creating tasks. "
+                f"Available agents: {list(self._agents_cache.keys())}"
             )
 
-        return Task(
-            description=task_def.description,
-            agent=agent,
-            expected_output=task_def.expected_output
-        )
+        try:
+            return Task(
+                description=task_def.description,
+                agent=agent,
+                expected_output=task_def.expected_output
+            )
+        except Exception as e:
+            raise TaskCreationError(
+                f"Failed to create task for agent '{task_def.agent_role}': {e}"
+            ) from e
 
     def execute_workflow(
         self,
@@ -118,15 +125,18 @@ class CrewAIBackend(BaseBackend):
                 }
             )
         except Exception as e:
+            # Log the error but return a failed result instead of raising
+            error_msg = f"CrewAI workflow execution failed: {str(e)}"
             return WorkflowResult(
                 success=False,
-                outputs={"error": str(e)},
+                outputs={"error": error_msg},
                 metadata={
                     "backend": "crewai",
                     "agents_count": len(agents),
                     "tasks_count": len(tasks),
                     "process": process_type,
-                    "error_type": type(e).__name__
+                    "error_type": type(e).__name__,
+                    "error_message": str(e)
                 }
             )
 
